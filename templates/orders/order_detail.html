@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">Order #{{ order.id }}</h1>
+
+    <div class="mb-8">
+        <h2 class="text-xl font-semibold text-gray-800 mb-4">Items</h2>
+        <div class="border-t border-gray-200">
+            {% for item in order.order_items.all %}
+            <div class="flex justify-between items-center py-4 border-b border-gray-100">
+                <div>
+                    <span class="font-medium text-gray-900">{{ item.item.name }}</span>
+                    <span class="text-gray-500 text-sm ml-2">×{{ item.quantity }}</span>
+                </div>
+                <span class="text-gray-700">{{ item.price }} {{ order.get_currency }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="bg-gray-50 rounded-lg p-6 mb-8">
+        <div class="flex justify-between mb-3">
+            <span class="text-gray-600">Subtotal:</span>
+            <span class="font-medium">{{ order.calculate_subtotal|floatformat:2 }} {{ order.get_currency }}</span>
+        </div>
+
+        {% if order.discount %}
+        <div class="flex justify-between mb-3 text-green-600">
+            <span>Discount ({{ order.discount.name }}):</span>
+            <span class="font-medium">-{{ order.calculate_discount_amount|floatformat:2 }} {{ order.get_currency
+                }}</span>
+        </div>
+        {% else %}
+        <form action="{% url 'apply_discount' order.id %}" method="post" class="mb-4">
+            {% csrf_token %}
+            <div class="flex gap-2">
+                <input type="text" name="discount_code" placeholder="Discount Name (e.g. SAVE10)"
+                    class="flex-1 border rounded px-3 py-2">
+                <button type="submit" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">
+                    Apply
+                </button>
+            </div>
+        </form>
+        {% endif %}
+
+        {% if order.tax %}
+        <div class="flex justify-between mb-3 text-red-600">
+            <span>Tax ({{ order.tax.name }}):</span>
+            <span class="font-medium">+{{ order.calculate_tax_amount|floatformat:2 }} {{ order.get_currency }}</span>
+        </div>
+        {% endif %}
+
+        <div class="flex justify-between text-2xl font-bold pt-4 border-t border-gray-200">
+            <span>Total:</span>
+            <span>{{ order.total_amount }} {{ order.get_currency }}</span>
+        </div>
+    </div>
+
+    {% if not order.is_paid %}
+    <button id="checkout-button"
+        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg text-lg">
+        Pay Now
+    </button>
+    {% else %}
+    <div class="bg-green-100 text-green-800 p-4 rounded-lg text-center font-medium">
+        Order Paid
+    </div>
+    {% endif %}
+
+    <div class="mt-4 text-center space-x-4">
+        <a href="/" class="text-blue-600 hover:underline">Continue Shopping</a>
+        <a href="{% url 'clear_new_order' %}" class="text-red-600 hover:underline">Start New Order (Clear Cart)</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="https://js.stripe.com/v3/"></script>
+<script>
+    const stripe = Stripe('{{ stripe_public_key }}');
+    const checkoutBtn = document.getElementById('checkout-button');
+
+    if (checkoutBtn) {
+        checkoutBtn.addEventListener('click', function () {
+            checkoutBtn.disabled = true;
+            checkoutBtn.textContent = 'Preparing...';
+
+            fetch("{% url 'create_order_checkout_session' order.id %}")
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+                    return stripe.redirectToCheckout({ sessionId: data.id });
+                })
+                .catch(err => {
+                    checkoutBtn.disabled = false;
+                    checkoutBtn.textContent = 'Pay Now';
+                    alert('Error: ' + err.message);
+                });
+        });
+    }
+</script>
+{% endblock %}
