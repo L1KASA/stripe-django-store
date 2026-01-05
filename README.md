@@ -1,7 +1,5 @@
 # Stripe Django Store
 
-## Getting Started
-
 ### 1. Environment Configuration
 
 Copy `.env.example` to `.env` and fill it
