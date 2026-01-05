@@ -1,4 +1,5 @@
 from django.db import models
+from decimal import Decimal
 from django.core.validators import MinValueValidator
 from products.models import Item
 from taxes.models import Discount, Tax
@@ -94,26 +95,26 @@ class Order(models.Model):
             self.total_amount = self.calculate_total()
         super().save(*args, **kwargs)
 
-    def calculate_subtotal(self) -> float:
+    def calculate_subtotal(self) -> Decimal:
         subtotal = 0
         for order_item in self.order_items.all():
             subtotal += order_item.price * order_item.quantity
         return subtotal
 
-    def calculate_discount_amount(self) -> float:
+    def calculate_discount_amount(self) -> Decimal:
         if not self.discount:
-            return 0
+            return Decimal(0)
 
         subtotal = self.calculate_subtotal()
 
         if self.discount.discount_type == Discount.DiscountType.PERCENTAGE:
-            return subtotal * (self.discount.amount / 100)
+            return subtotal * (self.discount.amount / Decimal(100))
         else:
-            return self.discount.amount
+            return Decimal(self.discount.amount)
 
-    def calculate_tax_amount(self) -> float:
+    def calculate_tax_amount(self) -> Decimal:
         if not self.tax:
-            return 0
+            return Decimal(0)
 
         subtotal = self.calculate_subtotal()
         discount_amount = self.calculate_discount_amount()
@@ -121,7 +122,7 @@ class Order(models.Model):
 
         return taxable_amount * (self.tax.rate / 100)
 
-    def calculate_total(self) -> float:
+    def calculate_total(self) -> Decimal:
         subtotal = self.calculate_subtotal()
         discount_amount = self.calculate_discount_amount()
         tax_amount = self.calculate_tax_amount()
@@ -133,6 +134,11 @@ class Order(models.Model):
         if self.items.exists():
             return self.items.first().currency
         return 'USD'
+
+    @property
+    def currency_code(self) -> str:
+        """Helper property to access currency in templates"""
+        return self.get_currency()
 
     @property
     def is_paid(self) -> bool:

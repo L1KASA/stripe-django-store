@@ -28,8 +28,7 @@
         {% if order.discount %}
         <div class="flex justify-between mb-3 text-green-600">
             <span>Discount ({{ order.discount.name }}):</span>
-            <span class="font-medium">-{{ order.calculate_discount_amount|floatformat:2 }} {{ order.get_currency
-                }}</span>
+            <span class="font-medium">-{{ order.calculate_discount_amount|floatformat:2 }}</span>
         </div>
         {% else %}
         <form action="{% url 'apply_discount' order.id %}" method="post" class="mb-4">
